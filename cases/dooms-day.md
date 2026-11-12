@@ -58,3 +58,23 @@ Toda la resolución se realizó **exclusivamente por análisis forense pasivo** 
 - **Métricas en bytes como señal analítica:** comparar tamaños entre capas (HTTP `Content-Length` vs. logs internos de depuración) separa contenido legítimo de memoria fugada.
 - **Cadencia de handshakes TCP:** distinguir reintentos fallidos (`SYN` sin respuesta) de un `SYN-ACK` inmediato permite confirmar el instante exacto de ejecución remota sin depender únicamente de logs de aplicación.
 - **Separación hecho vs. hipótesis:** contrastar cada inferencia con el stream reconstruido evita consolidar falsos positivos durante la investigación.
+
+---
+
+## 5. Mapeo MITRE ATT&CK
+
+* **T1595.002** — Active Scanning: Vulnerability Scanning (reconocimiento inicial)
+* **T1499.002** — Endpoint Denial of Service: Service Exhaustion Flood (agotamiento del pool de workers Apache)
+* **T1190 / T1203** — Exploit Public-Facing Application (`CVE-2026-109618` / `CVE-2026-109619` OOM RCE en PHP)
+* **T1005 / T1552.001** — Data from Local System / Credentials in Files (fuga de heap en `PHPSESSID` y búsqueda de SQLite local)
+* **T1059.004 / T1071** — Command and Scripting Interpreter: Unix Shell / Application Layer Protocol (reverse shell saliente)
+* **T1082 / T1083** — System Information Discovery / File and Directory Discovery (reconocimiento post-explotación)
+
+---
+
+## 6. IOCs y Señales Observables (SIEM / Red / Host)
+
+* **Logs de Apache/PHP (`error.log`):** ráfagas de `Allowed memory size of ... bytes exhausted` o `child pid ... exit signal Segmentation fault (11)` correlacionadas con peticiones `POST` `multipart/form-data`.
+* **Logs de acceso (`access.log`):** peticiones `multipart/form-data` con alta latencia o estado `408`/`500` previas a actividad saliente anómala, y cabeceras `Set-Cookie: PHPSESSID=` de longitud inusual.
+* **Red (`PCAP` / IDS):** conexiones TCP salientes originadas desde el contenedor web hacia puertos no estándar con patrón de *backoff* en los reintentos de handshake.
+* **Host / Contenedor (`auditd` / `Falco`):** eventos `execve` lanzando `/bin/sh`, `bash` o `find /` cuyo `ppid` pertenezca al proceso `apache2` / `php-fpm` (`www-data`).
